@@ -19,11 +19,10 @@ class x2jcore:
         self.excel_path = "配置表"
         self.output_path = 'output_temp'
         self.save_path = 'json'
-        self.files_list = []
-        self.error_msg = []
-        self.error_cnt = 0
     
     def init(self,filename):
+        self.error_msg = []
+        self.error_cnt = 0
         self.wb = xlrd.open_workbook(filename)
         self.sheet_names = self.wb.sheet_names()
         self.flag = self.readExcel() # 0=导表成功 1=字段名带空格

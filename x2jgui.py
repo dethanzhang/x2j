@@ -9,15 +9,6 @@ import x2jcore, x2jutils
 
 version = '2.0.0'
 
-CONST_EXCEL_PATH = "配置表"
-CONST_OUTPUT_PATH = 'output_temp'
-CONST_SAVE_PATH = 'json'
-CONST_FILES_LIST = []
-CONST_ERROR_MSG = []
-CONST_ERROR_CNT = 0
-CONST_CURRENT_SHEET = ''
-
-
 def toggle_selection():
     # 根据 "开启选择" 勾选框的状态，批量启用或禁用所有单选按钮
     new_state = tk.NORMAL if enable_var.get() == 1 else tk.DISABLED
@@ -26,7 +17,7 @@ def toggle_selection():
     if new_state == tk.DISABLED:
         feature_var.set(0)  # 重置单选按钮的选项
 
-def perform_action():#执行脚本
+def perform_action(ax):#执行脚本
     #清理temp目录
     x2jutils.clearTempFiles(ax.output_path)
     # 获取勾选的表格路径
@@ -36,33 +27,28 @@ def perform_action():#执行脚本
         for idx, flag in enumerate(selected_items):
             if flag == True:
                 print('正在导出 >> %s'%all_xlsx_path[idx])
-                ax.readExcel(all_xlsx_path[idx])
-                if len(CONST_ERROR_MSG) > 0:
-                    msg = "《%s》-【%s】\n-------------------\n"%(all_xlsx_path[idx],CONST_CURRENT_SHEET) + "\n\n".join(CONST_ERROR_MSG)
+                ax.init(all_xlsx_path[idx]) #初始化, 会返回一个参数：0=导表成功 1=字段名带空格
+                if len(ax.error_msg) > 0:
+                    msg = "《%s》-【%s】\n-------------------\n"%(all_xlsx_path[idx],ax.current_sheet) + "\n\n".join(ax.error_msg)
                     messagebox.showwarning("错误", msg)
-                    CONST_ERROR_MSG.clear()
+                    ax.error_msg.clear()
                 if feature_var.get() > 0:
                     dir2 = all_json_path[feature_var.get()-1]
                     #执行移动
                     x2jutils.autoMove(ax.output_path,dir2)
-                    if len(CONST_ERROR_MSG) > 0:
-                        msg = "《%s》\n-------------------\n"%all_xlsx_path[idx] + "\n\n".join(CONST_ERROR_MSG)
+                    if len(ax.error_msg) > 0:
+                        msg = "《%s》\n-------------------\n"%all_xlsx_path[idx] + "\n\n".join(ax.error_msg)
                         messagebox.showwarning("错误", msg)
-                        CONST_ERROR_MSG.clear()
+                        ax.error_msg.clear()
     except Exception as e:
         messagebox.showerror("错误", str(e))
     
-    global CONST_ERROR_CNT
-    if CONST_ERROR_CNT == 0:
+    if ax.error_cnt == 0:
         # 显示一个消息框，告知用户操作已完成
         messagebox.showinfo("操作完成", "导表完毕")
     else:
-        messagebox.showinfo("操作完成", "出现%s个错误, 建议检查后重新执行"%CONST_ERROR_CNT)
-    CONST_ERROR_CNT = 0
-
-
-def init():
-    
+        messagebox.showinfo("操作完成", "出现%s个错误, 建议检查后重新执行"%ax.error_cnt)
+    ax.error_cnt = 0
 
 
 
@@ -70,16 +56,13 @@ ax = x2jcore.x2jcore()
 # 获得所有json目录路径
 all_json_path = x2jutils.getAllFolders(ax.save_path) 
 
-#获得所有excel文件路径
 all_xlsx_path = []
-xlsx_folder_list = x2jutils.getAllFolders(ax.excel_path)
-for a in xlsx_folder_list:
+#获得所有excel文件路径
+for a in x2jutils.getAllFolders(ax.excel_path):
     all_xlsx_path += [os.path.join(a,b) for b in x2jutils.pathFileList(a)]
 
 #清理temp目录
 x2jutils.clearTempFiles(ax.output_path)
-
-
 
 # 创建主窗口
 root = tk.Tk()
@@ -125,9 +108,8 @@ for idx, feature in enumerate(all_json_path):
     radio_buttons.append(radio)
 
 # 创建一个按钮用于执行脚本
-execute_button = tk.Button(root, text="开始导表", command=perform_action, width=30, height=2)
+execute_button = tk.Button(root, text="开始导表", command=lambda: perform_action(ax), width=30, height=2)
 execute_button.pack(side=tk.BOTTOM, pady=10)
-
 
 # 运行主循环
 root.mainloop()
