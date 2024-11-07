@@ -178,6 +178,9 @@ class x2jcore:
                 content = x2jutils.fixBadChar(content,list_badChar,list_goodChar)
             table = dict(zip(keys,content))
             x2jutils.writeJsonFile(self.titles[i]+'.json',table)
+    
+    def run(self):
+        self.readExcel()
 
 if __name__ == "__main__":
     ax = x2jcore()

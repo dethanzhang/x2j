@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import x2jcore, x2jutils
 
+version = '2.0.0'
 
 CONST_EXCEL_PATH = "配置表"
 CONST_OUTPUT_PATH = 'output_temp'
@@ -27,7 +28,7 @@ def toggle_selection():
 
 def perform_action():#执行脚本
     #清理temp目录
-    clearAllJsonFile(CONST_OUTPUT_PATH)
+    x2jutils.clearTempFiles(ax.output_path)
     # 获取勾选的表格路径
     selected_items = [item_var.get() for item_var in item_vars]
     try:
@@ -35,7 +36,7 @@ def perform_action():#执行脚本
         for idx, flag in enumerate(selected_items):
             if flag == True:
                 print('正在导出 >> %s'%all_xlsx_path[idx])
-                readExcel(all_xlsx_path[idx])
+                ax.readExcel(all_xlsx_path[idx])
                 if len(CONST_ERROR_MSG) > 0:
                     msg = "《%s》-【%s】\n-------------------\n"%(all_xlsx_path[idx],CONST_CURRENT_SHEET) + "\n\n".join(CONST_ERROR_MSG)
                     messagebox.showwarning("错误", msg)
@@ -43,7 +44,7 @@ def perform_action():#执行脚本
                 if feature_var.get() > 0:
                     dir2 = all_json_path[feature_var.get()-1]
                     #执行移动
-                    autoMove(dir2)
+                    x2jutils.autoMove(ax.output_path,dir2)
                     if len(CONST_ERROR_MSG) > 0:
                         msg = "《%s》\n-------------------\n"%all_xlsx_path[idx] + "\n\n".join(CONST_ERROR_MSG)
                         messagebox.showwarning("错误", msg)
@@ -58,6 +59,27 @@ def perform_action():#执行脚本
     else:
         messagebox.showinfo("操作完成", "出现%s个错误, 建议检查后重新执行"%CONST_ERROR_CNT)
     CONST_ERROR_CNT = 0
+
+
+def init():
+    
+
+
+
+ax = x2jcore.x2jcore()
+# 获得所有json目录路径
+all_json_path = x2jutils.getAllFolders(ax.save_path) 
+
+#获得所有excel文件路径
+all_xlsx_path = []
+xlsx_folder_list = x2jutils.getAllFolders(ax.excel_path)
+for a in xlsx_folder_list:
+    all_xlsx_path += [os.path.join(a,b) for b in x2jutils.pathFileList(a)]
+
+#清理temp目录
+x2jutils.clearTempFiles(ax.output_path)
+
+
 
 # 创建主窗口
 root = tk.Tk()
