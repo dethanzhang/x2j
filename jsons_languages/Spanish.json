@@ -1,0 +1,11 @@
+{
+    "setting_title": "configurar",
+    "setting_label_music": "música",
+    "setting_label_sound": "efecto de sonido",
+    "setting_label_vibrate": "choque",
+    "setting_button_comment": "Evaluación",
+    "setting_button_feedback": "comentario",
+    "setting_button_language": "Selección de idioma",
+    "setting_button_policy": "Política de privacidad",
+    "setting_button_service": "Política de servicio"
+}
