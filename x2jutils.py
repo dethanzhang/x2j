@@ -1,21 +1,18 @@
 # !/usr/bin/python3
 # -*- coding: utf-8 -*-
-
 import os
 import json
 
-CONST_EXCEL_PATH = "配置表utils"
-CONST_OUTPUT_PATH = 'output_temp'
-CONST_SAVE_PATH = 'json'
-CONST_ERROR_MSG = []
-
-def checkChdir():
+def checkChdir(): #打包为mac单文件时, 需要切换到app的上一级目录
     now = os.getcwd()
     if '.app' in now:
         os.chdir(os.path.split(now.split('.app')[0])[0])
 
 def fileExtension(path): 
     return os.path.splitext(path)[1]
+
+def getAllFolders(prefix):
+    return [x for x in os.listdir() if x.startswith(prefix) and os.path.isdir(x)]
 
 def clearTempFiles(filePath):
     if os.path.exists(filePath):
@@ -29,10 +26,7 @@ def clearTempFiles(filePath):
     else:
         os.makedirs(filePath)
 
-def getAllFolders(prefix):
-    return [x for x in os.listdir() if x.startswith(prefix) and os.path.isdir(x)]
-
-def pathFileList(filePath):
+def xlsxFileList(filePath):
     listDir = sorted(os.listdir(filePath))
     filenames = []
     for x in listDir:
@@ -48,13 +42,12 @@ def autoMove(dir1,dir2):
                 os.remove(os.path.join(dir2,x))
             os.rename(os.path.join(dir1,x),os.path.join(dir2,x))
         except Exception as e:
-            CONST_ERROR_MSG.append(str(e))
-            return e
+            return str(e)
+    return None
 
 
-def writeJsonFile(filename,data):
+def writeJsonFile(filePath,data):
     data_str = json.dumps(data, sort_keys=False, indent=4, ensure_ascii=False)
-    filePath = os.path.join(CONST_OUTPUT_PATH,filename)
     if os.path.exists(filePath):
         os.remove(filePath)
     with open(filePath,'w',encoding='utf8') as f:
@@ -88,23 +81,29 @@ def autoValue(value):
 
 def getValueByType(value,type1,subType=None,debug=False):
     try:
+        #处理填null的空值
         if value == 'null':
             if type1 == 'matrix' or type1 == 'array' or type1 == 'array-str' or type1 == 'json' or type1 == 'json-str':
                 return []
             if type1 == 'int' or type1 == 'float':
                 return 0
             return ''
+        
+        #处理int/float
         if type1 == "int":
             if value == '':
                 return 0
             return int(value)
         if type1 == "float":
             return float(value)
+        
+        #处理bool
         if type1 == "bool":
             if value == "true" or autoValue(value) == 1 or value == "True" or value == "TRUE":
                 return True
             return False
-
+        
+        #处理array-str，即所有数组内元素都为字符串
         if type1 == "array-str":
             if '\n' in str(value):
                 value=value.replace('\n',',')
@@ -112,7 +111,8 @@ def getValueByType(value,type1,subType=None,debug=False):
                 return [str(autoValue(value))]
             listsValue = [str(autoValue(i)) for i in value.split(',')]
             return listsValue
-
+        
+        #处理array，数组内各元素的类型自动识别
         if type1 == "array":
             if '\n' in str(value):
                 value=value.replace('\n',',')
@@ -123,23 +123,40 @@ def getValueByType(value,type1,subType=None,debug=False):
                 return [value]
             listsValue = [autoValue(i) for i in value.split(',')]
             return listsValue
-
+        
+        #处理matrix二维数组，各元素类型自动识别
         if type1 == 'matrix':
-            if value == 0:
-                return []
             if '\n' in str(value):
                 value=value.replace('\n','|')
             if '|' not in str(value):
-                value = getValueByType(value,'array',None)
+                value = getValueByType(value,'array')
                 return [value]
-
             matrixList = [x for x in value.split('|')]
             for i in range(len(matrixList)):
-                matrixList[i] = getValueByType(matrixList[i],'array',None)
+                matrixList[i] = getValueByType(matrixList[i],'array')
             return matrixList
 
-        if type1 == "json-str":
+        #处理matrix-str二维数组，各元素类型均转为字符串
+        if type1 == 'matrix-str':
+            if '\n' in str(value):
+                value=value.replace('\n','|')
+            if '|' not in str(value):
+                value = getValueByType(value,'array-str')
+                return [value]
+            matrixList = [x for x in value.split('|')]
+            for i in range(len(matrixList)):
+                matrixList[i] = getValueByType(matrixList[i],'array-str')
+            return matrixList
+
+        #处理json-str，即所有json内元素都为字符串
+        #填写格式为：subType行填写k1,k2,k3  内容行填写v01,v02,v03;v11,v12,v13;...
+        #输出格式为： [{k1:v01,k2:v02,...},{k1:v11,k2:v12,...},...]
+        if type1 == 'json-str':
+            if value == '':
+                return []
             if subType:
+                if '\n' in str(value):
+                    value=value.replace('\n',';')
                 maps = subType.split(',')
                 strs = value.split(';')
                 ret = []
@@ -149,16 +166,19 @@ def getValueByType(value,type1,subType=None,debug=False):
                     dic = {}
                     contents = strs[i].split(',')
                     for j in range(0,len(maps)):
-                        dic[maps[j]] = getValueByType(contents[j],"str",None)
+                        dic[maps[j]] = getValueByType(contents[j],"str")
                     ret.append(dic)
                 return ret
             else:
                 return json.loads(value)
 
-        if type1 == "json":
+        #处理json，各元素类型自动识别
+        if type1 == 'json':
             if value == '':
                 return []
             if subType:
+                if '\n' in str(value):
+                    value=value.replace('\n',';')
                 maps = subType.split(',')
                 strs = value.split(';')
                 ret = []
@@ -172,7 +192,7 @@ def getValueByType(value,type1,subType=None,debug=False):
             else:
                 return json.loads(value)
 
-
+        #处理str/string，字符串类型自动识别
         if type1 == "str" or type1 == "string":
             if type(value).__name__ == 'str':
                 return value
@@ -181,7 +201,6 @@ def getValueByType(value,type1,subType=None,debug=False):
 
     except Exception as e:
         print('[ERROR]getValueByType >> %s'%e)
-        # CONST_ERROR_MSG.append("第【%d】行 第【%d】列单元格填写错误"%(row+1,column+1))
         if debug:
             return e
         return None

@@ -21,13 +21,22 @@ class x2jcore:
         self.save_path = 'json'
     
     def init(self,filename):
-        self.error_msg = []
+        self.error_msg = {} #格式为{sheetname1: [错误信息1,...],sheetname2: [错误信息1,...]}
         self.error_cnt = 0
         self.wb = xlrd.open_workbook(filename)
         self.sheet_names = self.wb.sheet_names()
-        self.flag = self.readExcel() # 0=导表成功 1=字段名带空格
 
-    def readExcel(self):
+    def storeErrorMsg(self,i,j):
+        quotient, remainder = divmod(j, 26)
+        #0~25 对应A~Z, 26~51 对应AA~AZ, 52~77 对应BA~BZ
+        if quotient == 0:
+            col_name = chr(remainder + 65)
+        else:
+            col_name = chr(quotient + 64) + chr(remainder + 65)
+        self.error_msg[self.current_sheet].append("第【%s】行 第【%s】列单元格填写错误"%(i+1,col_name))
+        self.error_cnt += 1
+
+    def readExcel(self): #返回0=导表成功 1=字段名带空格
         for sheet in self.sheet_names:
             if sheet == '':
                 continue
@@ -60,10 +69,12 @@ class x2jcore:
             findGroup = -1
             findArrayGroup = -1
 
+            self.error_msg[sheet] = []
+            print("导出子表格-----",sheet_name)
             for i in range(0,len(self.titles)):
                 title = self.titles[i]
                 if ' ' in title:
-                    self.error_msg.append('%s表中的%s字段包含有空格, 请检查'%(self.current_sheet,title))
+                    self.error_msg[self.current_sheet].append('%s表中的%s字段包含有空格, 请检查'%(self.current_sheet,title))
                     self.error_cnt += 1
                     return 1
                 if title.startswith('*'):
@@ -84,22 +95,22 @@ class x2jcore:
                 if findGroup != -1:
                     if find != -1:
                         # table = readExcelByGroup(findGroup,find,titles,types,subTypes,sheet_data)
-                        # x2jutils.writeJsonFile(sheet_name+".json",table)
+                        # x2jutils.writeJsonFile(os.path.join(self.output_path,sheet_name+'.json'),table)
                         pass
                 elif find != -1:
                     # table = readExcelByKey(find,titles,types,subTypes,sheet_data)
-                    # x2jutils.writeJsonFile(sheet_name+".json",table)
+                    # x2jutils.writeJsonFile(os.path.join(self.output_path,sheet_name+'.json'),table)
                     pass
                 else :
                     #都没有找到 为无key文件
                     table = self.readExcelNoKey()
-                    x2jutils.writeJsonFile(sheet_name+".json",table)
+                    x2jutils.writeJsonFile(os.path.join(self.output_path,sheet_name+'.json'),table)
                 continue
 
             if singleOutput == 2:
                 if findLevel != -1:
                         table = self.readExcelByLevel(findLevel)
-                        x2jutils.writeJsonFile(sheet_name+'.json',table)
+                        x2jutils.writeJsonFile(os.path.join(self.output_path,sheet_name+'.json'),table)
                 continue
 
             if singleOutput == 3:
@@ -126,9 +137,9 @@ class x2jcore:
                     continue
                 if self.types[j] != '':
                     line[self.titles[j]] = x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j])
-                    if not line[self.titles[j]]:
-                        self.error_msg.append("第【%d】行 第【%d】列单元格填写错误"%(i,j))
-                        self.error_cnt += 1
+                    if line[self.titles[j]] == None:
+                        print("第【%s】行 第【%s】列单元格填写错误: %s"%(i+1,j+1,x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j],debug=True)))
+                        self.storeErrorMsg(i,j)
             table.append(line)
         return table
 
@@ -142,7 +153,7 @@ class x2jcore:
             line = {}
 
             if content[0] != '':#首列不为空,表示有新增主键
-                try:
+                try: #避免首行报错
                     table.append(alevel)
                 except:
                     pass
@@ -151,12 +162,18 @@ class x2jcore:
                     if self.titles[j].startswith('#'):
                         continue
                     alevel[self.titles[j]] = x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j])
+                    if alevel[self.titles[j]] == None: #处理报错
+                        print(x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j],debug=True))
+                        self.storeErrorMsg(i,j)
                 alevel[self.titles[findLevel]] = []
 
             for j in range(findLevel+1, len(self.titles)):#将每行的从属内容合并
                 if self.titles[j].startswith('#'):
                     continue
                 line[self.titles[j]] = x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j])
+                if line[self.titles[j]] == None: #处理报错
+                    print(x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j],debug=True))
+                    self.storeErrorMsg(i,j)
             alevel[self.titles[findLevel]].append(line)
         table.append(alevel)
         return table
@@ -176,10 +193,9 @@ class x2jcore:
                 # list_goodChar_unicode = char_data.col_values(3)[1:]
                 content = x2jutils.fixBadChar(content,list_badChar,list_goodChar)
             table = dict(zip(keys,content))
-            x2jutils.writeJsonFile(self.titles[i]+'.json',table)
-    
-    def run(self):
-        self.readExcel()
+            x2jutils.writeJsonFile(os.path.join(self.output_path,self.titles[i]+'.json'),table)
+
+
 
 if __name__ == "__main__":
     ax = x2jcore()
@@ -191,7 +207,7 @@ if __name__ == "__main__":
     all_xlsx_path = []
     xlsx_folder_list = x2jutils.getAllFolders(ax.excel_path)
     for a in xlsx_folder_list:
-        all_xlsx_path += [os.path.join(a,b) for b in x2jutils.pathFileList(a)]
+        all_xlsx_path += [os.path.join(a,b) for b in x2jutils.xlsxFileList(a)]
 
     #清理temp目录
     x2jutils.clearTempFiles(ax.output_path)
@@ -205,4 +221,4 @@ if __name__ == "__main__":
         print('输入错误 请重新执行脚本')
     else:
         ax.init(all_xlsx_path[selectFile-1])
-        # ax.readExcel()
+        ax.readExcel()
