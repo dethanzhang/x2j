@@ -27,7 +27,7 @@ def clearTempFiles(filePath):
         os.makedirs(filePath)
 
 def xlsxFileList(filePath):
-    listDir = sorted(os.listdir(filePath))
+    listDir = sorted(os.listdir(filePath),key=len)
     filenames = []
     for x in listDir:
         if (not x.startswith('~$')) and (fileExtension(x) == '.xlsx' or fileExtension(x) == '.xls'):
