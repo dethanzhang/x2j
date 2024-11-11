@@ -2,7 +2,7 @@
 
 常用于游戏研发的xlsx/xls转json数据的工具。
 
-- [x] **同时支持xlsx和xls格式**
+- [X] **同时支持xlsx和xls格式**
 - [x] **一键移动到指定目录** 
 - [x] **文本字符导出自动替换** 
 - [x] **可导出多种json格式：** 可自行在x2jcore增加支持的种类
@@ -18,12 +18,13 @@
 > x2j工具
 
 
-# 单文件运行
-自行选择下载解压运行即可
+# 运行
+文件版本：自行选择下载解压运行即可
 winx64版本：`x2jgui_win_x64.zip`
 macM1版本：`x2jgui_mac_m1.zip`
 
-# python环境运行：库依赖
+python环境运行：
+库依赖
 ```bash
 python3 -m pip install xlrd==1.2.0
 ```
