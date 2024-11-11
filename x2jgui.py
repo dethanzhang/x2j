@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import x2jcore, x2jutils
 
-version = '2.0'
+version = '2.1'
 ax = x2jcore.x2jcore()
 x2jutils.checkChdir()
 
@@ -39,8 +39,7 @@ def perform_action():#执行脚本
         for idx, flag in enumerate(selected_items):
             if flag == True:
                 print('正在导出 >> %s'%all_xlsx_path[idx])
-                ax.init(all_xlsx_path[idx]) #初始化
-                ax.readExcel() #开始读取excel并逐个导出子表。会返回一个参数：0=导表成功 1=字段名带空格
+                ax.start(all_xlsx_path[idx])
                 if ax.error_cnt > 0:
                     print_error(all_xlsx_path[idx])
 
