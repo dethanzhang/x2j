@@ -19,9 +19,8 @@
 
 
 # 运行
-文件版本：自行选择下载解压运行即可
-winx64版本：`x2jgui_win_x64.zip`
-macM1版本：`x2jgui_mac_m1.zip`
+单文件版本：自行选择对应平台下载解压运行即可
+[下载](https://github.com/dethanzhang/x2j/releases/tag/release)
 
 python环境代码运行：请先安装依赖库xlrd，版本必须为1.2.0！
 ```bash
