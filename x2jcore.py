@@ -144,13 +144,16 @@ class x2jcore:
     def readExcelWithGroup(self,findGroup):
         table = []
         row_num = self.sheet_data.nrows
-
+        jumpFlag = False
         for i in range(self.content_begin,row_num):
             content = self.sheet_data.row_values(i)
             line = {}
-            if str(content[0]).startswith('#'): #首列内容包含#号则表示本行不导出
-                continue
+
             if content[0] != '':#首列不为空,表示有新增主键
+                if str(content[0]).startswith('#'): #首列内容包含#号则表示本id的所有内容不导出
+                    jumpFlag = True
+                    continue
+                jumpFlag = False
                 try: #避免首行报错
                     table.append(alevel)
                 except:
@@ -164,7 +167,8 @@ class x2jcore:
                         print(x2jutils.getValueByType(content[j],self.types[j],self.subTypes[j],debug=True))
                         self.storeErrorMsg(i,j)
                 alevel[self.titles[findGroup]] = []
-
+            if jumpFlag == True:
+                continue
             for j in range(findGroup+1, len(self.titles)):#将每行的从属内容合并
                 if self.titles[j].startswith('#'):
                     continue

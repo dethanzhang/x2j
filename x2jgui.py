@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import x2jcore, x2jutils
 
-version = '2.2'
+version = '2.3'
 ax = x2jcore.x2jcore()
 x2jutils.checkChdir()
 
