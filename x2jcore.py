@@ -126,7 +126,7 @@ class x2jcore:
         row_num = self.sheet_data.nrows
         for i in range(self.content_begin,row_num):
             content = self.sheet_data.row_values(i)
-            if content[0] == '':
+            if content[0] == '' or str(content[0]).startswith('#'): #首列内容为空或包含#号则表示本行不导出
                 continue
             line = {}
             for j in range(0,len(self.titles)):
@@ -148,7 +148,8 @@ class x2jcore:
         for i in range(self.content_begin,row_num):
             content = self.sheet_data.row_values(i)
             line = {}
-
+            if str(content[0]).startswith('#'): #首列内容包含#号则表示本行不导出
+                continue
             if content[0] != '':#首列不为空,表示有新增主键
                 try: #避免首行报错
                     table.append(alevel)
