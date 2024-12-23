@@ -3,7 +3,6 @@
 # 需要安装xlrd 1.2.0版本。#python3 -m pip install xlrd==1.2.0
 
 import os
-import json
 import xlrd
 import x2jutils
 

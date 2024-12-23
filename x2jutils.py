@@ -84,7 +84,7 @@ def autoValue(value):
         value = float(value)
     except ValueError:
         return value
-    value = "{:.12g}".format(value)
+    value = f"{value:.8f}".rstrip("0").rstrip(".")
     try:  # 是否整数
         return int(value)
     except ValueError:
@@ -114,7 +114,9 @@ def getValueByType(value, type1, subType=None, debug=False):
                 return 0
             return int(value)
         if type1 == "float":
-            return float(value)
+            return float(
+                autoValue(value)
+            )  # 直接导出会导致导出的值为内存存储值, 与实际显示不一致
 
         # 处理bool
         if type1 == "bool":
