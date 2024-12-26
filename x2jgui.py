@@ -2,12 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import os
-import json
 import tkinter as tk
 from tkinter import ttk, messagebox
 import x2jcore, x2jutils
 
-version = "2.4"
+version = "3.0"
 ax = x2jcore.x2jcore()
 x2jutils.checkChdir()
 

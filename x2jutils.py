@@ -37,9 +37,7 @@ def xlsxFileList(filePath):
     listDir = sorted(os.listdir(filePath), key=len)
     filenames = []
     for x in listDir:
-        if (not x.startswith("~$")) and (
-            fileExtension(x) == ".xlsx" or fileExtension(x) == ".xls"
-        ):
+        if (not x.startswith("~$")) and (fileExtension(x) == ".xlsx"):  # 仅支持xlsx文件
             filenames.append(x)
     return filenames
 
@@ -54,6 +52,12 @@ def autoMove(dir1, dir2):
         except Exception as e:
             return str(e)
     return None
+
+
+def getValidLength(lst):
+    for i in range(len(lst) - 1, -1, -1):
+        if lst[i] and not lst[i].startswith("#"):  # 取到列表有效长度(一般用于titles)
+            return i + 1
 
 
 def writeJsonFile(filePath, data):
@@ -73,7 +77,7 @@ def writeJsonFile(filePath, data):
 def fixBadChar(content, list_badChar, list_goodChar):
     for i, x in enumerate(list_badChar):
         for idx, c in enumerate(content):
-            if x in str(c):
+            if c != None and x in str(c):
                 content[idx] = c.replace(x, list_goodChar[i])
                 print("检测到字符错误, 已替换为", list_goodChar[i])
     return content
@@ -94,8 +98,8 @@ def autoValue(value):
 
 def getValueByType(value, type1, subType=None, debug=False):
     try:
-        # 处理填null的空值
-        if value == "null":
+        # 处理填null或未填写内容的空值
+        if value == "null" or value == None:
             if (
                 type1 == "matrix"
                 or type1 == "array"

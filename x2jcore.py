@@ -1,20 +1,20 @@
 # !/usr/bin/python3
 # -*- coding: utf-8 -*-
-# 需要安装xlrd 1.2.0版本。#python3 -m pip install xlrd==1.2.0
+# author: dethanz
+# contact: dethanzhang@hotmail.com
+# 需要安装openpyxl
 
 import os
-import xlrd
 import x2jutils
-
-xlrd.book.encoding = "gbk"
+from openpyxl import load_workbook
 
 
 class x2jcore:
     def __init__(self):
-        self.title_pos = 1
-        self.type_pos = 2
-        self.subtype_pos = 3
-        self.content_begin = 5
+        self.title_pos = 2
+        self.type_pos = 3
+        self.subtype_pos = 4
+        self.content_begin = 6
         self.excel_path = "配置表"
         self.output_path = "output_temp"
         self.save_path = "json"
@@ -27,7 +27,7 @@ class x2jcore:
         else:
             col_name = chr(quotient + 64) + chr(remainder + 65)
         self.error_msg[self.current_sheet].append(
-            "行【%s】 【%s】列 填写错误" % (i + 1, col_name)
+            "行【%s】 【%s】列 填写错误" % (i, col_name)
         )
         self.error_cnt += 1
 
@@ -36,9 +36,8 @@ class x2jcore:
             {}
         )  # 格式为{sheetname1: [错误信息1,...],sheetname2: [错误信息1,...]}
         self.error_cnt = 0
-        self.wb = xlrd.open_workbook(filename)
-        self.sheet_names = self.wb.sheet_names()
-        for sheet in self.sheet_names:
+        self.wb = load_workbook(filename, data_only=True)
+        for sheet in self.wb.sheetnames:
             if sheet == "":
                 continue
             outputs = sheet.split("|")
@@ -60,21 +59,36 @@ class x2jcore:
                 sheet_name = sheet_name[1:]
 
             self.current_sheet = sheet
-            self.sheet_data = self.wb.sheet_by_name(sheet)
-            self.titles = self.sheet_data.row_values(self.title_pos)  # 拿到表头
-            self.types = self.sheet_data.row_values(self.type_pos)  # 拿到类型
-            self.subTypes = self.sheet_data.row_values(
-                self.subtype_pos
-            )  # 拿到子类型备注
+            self.sheet_data = self.wb[sheet]
+            self.titles = [
+                cell.value for cell in self.sheet_data[self.title_pos]
+            ]  # 拿到表头
+            self.types = [
+                cell.value for cell in self.sheet_data[self.type_pos]
+            ]  # 拿到类型
+            self.subTypes = [
+                cell.value for cell in self.sheet_data[self.subtype_pos]
+            ]  # 拿到子类型备注
+            self.max_col = x2jutils.getValidLength(self.titles)
+
+            self.sheet_data = [
+                row
+                for row in self.sheet_data.iter_rows(
+                    min_row=self.content_begin, max_col=self.max_col, values_only=True
+                )
+                if any(cell is not None for cell in row)
+            ]  # 去掉空行仅保留有效数据
 
             find = -1
             findGroup = -1
-            # findArrayGroup = -1
 
             self.error_msg[sheet] = []
-            print("导出子表格-----", sheet_name)
-            for i in range(0, len(self.titles)):
-                title = self.titles[i]
+            print("导出子表格 >>>>> ", sheet_name)
+            for j in range(0, len(self.titles)):
+                if self.titles[j] is None:
+                    self.titles[j] = "#"
+                    continue
+                title = self.titles[j]
                 if " " in title:
                     self.error_msg[self.current_sheet].append(
                         "%s表中的%s字段包含有空格, 请检查" % (self.current_sheet, title)
@@ -82,17 +96,11 @@ class x2jcore:
                     self.error_cnt += 1
                     return 1
                 if title.startswith("*"):
-                    self.titles[i] = title[1:]
-                    find = i
+                    self.titles[j] = title[1:]
+                    find = j
                 if title.startswith("^"):
-                    self.titles[i] = title[1:]
-                    findGroup = i
-                # if title.startswith('%'):
-                #     self.titles[i] = title[1:]
-                #     findMarks = i
-                # if title.startswith('[]'):
-                #     self.titles[i] = title[2:]
-                #     findArrayGroup = i
+                    self.titles[j] = title[1:]
+                    findGroup = j
 
             # 单独输出sheet为整个json文件 并以id为key包含每行内容为对象进行序列化
             if singleOutput == 1:
@@ -102,13 +110,11 @@ class x2jcore:
                         x2jutils.writeJsonFile(
                             os.path.join(self.output_path, sheet_name + ".json"), table
                         )
-                        pass
                 elif find != -1:
                     table = self.readExcelByKey(find)
                     x2jutils.writeJsonFile(
                         os.path.join(self.output_path, sheet_name + ".json"), table
                     )
-                    pass
                 else:
                     # 都没有找到 为无key文件
                     table = self.readExcelNoKey()
@@ -127,9 +133,9 @@ class x2jcore:
 
             if singleOutput == 3:
                 try:
-                    self.readLocalizationExcel(self.wb.sheet_by_name("异常字符集"))
+                    self.readLocalizationExcel(self.wb["异常字符集"])
                     print("已读取错误字符集")
-                except:
+                except KeyError:
                     self.readLocalizationExcel()
                 continue
 
@@ -138,50 +144,33 @@ class x2jcore:
     # 将单个sheet输出为一个数组, 一行数据为一个字典对象
     def readExcelNoKey(self):
         table = []
-        row_num = self.sheet_data.nrows
-        for i in range(self.content_begin, row_num):
-            content = self.sheet_data.row_values(i)
-            if content[0] == "" or str(content[0]).startswith(
+        for i, row in enumerate(self.sheet_data):
+            if row[0] is None or str(row[0]).startswith(
                 "#"
             ):  # 首列内容为空或包含#号则表示本行不导出
                 continue
             line = {}
-            for j in range(0, len(self.titles)):
+            for j in range(0, self.max_col):
                 if self.titles[j].startswith("#"):
                     continue
                 if self.types[j] != "":
                     line[self.titles[j]] = x2jutils.getValueByType(
-                        content[j], self.types[j], self.subTypes[j]
+                        row[j], self.types[j], self.subTypes[j]
                     )
                     if line[self.titles[j]] == None:
-                        print(
-                            "第【%s】行 第【%s】列单元格填写错误: %s"
-                            % (
-                                i + 1,
-                                j + 1,
-                                x2jutils.getValueByType(
-                                    content[j],
-                                    self.types[j],
-                                    self.subTypes[j],
-                                    debug=True,
-                                ),
-                            )
-                        )
                         self.storeErrorMsg(i, j)
             table.append(line)
         return table
 
-    # 将单个sheet输出为一个数组, 根据标记位置, 将多行组成一个数组. 只支持2个level,即[{ 主键 [{从属内容},] },]
+    # 将单个sheet输出为一个数组, 根据标记位置, 将多行组成一个数组. 只支持1个子层级,即[{ 主键 [{从属内容},] },]
     def readExcelWithGroup(self, findGroup):
         table = []
-        row_num = self.sheet_data.nrows
         jumpFlag = False
-        for i in range(self.content_begin, row_num):
-            content = self.sheet_data.row_values(i)
+        for i, row in enumerate(self.sheet_data):
             line = {}
 
-            if content[0] != "":  # 首列不为空,表示有新增主键
-                if str(content[0]).startswith(
+            if row[0]:  # 首列不为空,表示有新增主键
+                if str(row[0]).startswith(
                     "#"
                 ):  # 首列内容包含#号则表示本id的所有内容不导出
                     jumpFlag = True
@@ -189,35 +178,35 @@ class x2jcore:
                 jumpFlag = False
                 try:  # 避免首行报错
                     table.append(alevel)
-                except:
+                except NameError:
                     pass
                 alevel = {}
                 for j in range(0, findGroup):  # 创建主键内容
                     if self.titles[j].startswith("#"):
                         continue
                     alevel[self.titles[j]] = x2jutils.getValueByType(
-                        content[j], self.types[j], self.subTypes[j]
+                        row[j], self.types[j], self.subTypes[j]
                     )
-                    if alevel[self.titles[j]] == None:  # 处理报错
+                    if alevel[self.titles[j]] is None:  # 处理报错
                         print(
                             x2jutils.getValueByType(
-                                content[j], self.types[j], self.subTypes[j], debug=True
+                                row[j], self.types[j], self.subTypes[j], debug=True
                             )
                         )
                         self.storeErrorMsg(i, j)
                 alevel[self.titles[findGroup]] = []
-            if jumpFlag == True:
+            if jumpFlag:
                 continue
-            for j in range(findGroup + 1, len(self.titles)):  # 将每行的从属内容合并
+            for j in range(findGroup + 1, self.max_col):  # 将每行的从属内容合并
                 if self.titles[j].startswith("#"):
                     continue
                 line[self.titles[j]] = x2jutils.getValueByType(
-                    content[j], self.types[j], self.subTypes[j]
+                    row[j], self.types[j], self.subTypes[j]
                 )
-                if line[self.titles[j]] == None:  # 处理报错
+                if line[self.titles[j]] is None:  # 处理报错
                     print(
                         x2jutils.getValueByType(
-                            content[j], self.types[j], self.subTypes[j], debug=True
+                            row[j], self.types[j], self.subTypes[j], debug=True
                         )
                     )
                     self.storeErrorMsg(i, j)
@@ -225,66 +214,73 @@ class x2jcore:
         table.append(alevel)
         return table
 
-    # 将单个sheet输出为一个字典, 根据标记位置的列作为字典key. 每一行的其它内容再嵌套成一个字典. {id1:{title1:v1,title2:v2...},...}
-    def readExcelByKey(self, find):
-        table = {}
-        main_col = self.sheet_data.col_values(find)
-        main_type = self.types[find]
-        for i in range(self.content_begin, len(main_col)):
-            content = self.sheet_data.row_values(i)
-            if main_col[i] != "":
-                id = x2jutils.getValueByType(main_col[i], main_type)
-                table[id] = {}
-                for k in range(0, len(self.types)):
-                    if self.types[k] != "" and content[k] != "":
-                        value = x2jutils.getValueByType(
-                            content[k], self.types[k], self.subTypes[k]
-                        )
-                        key = self.titles[k]
-                        table[id][key] = value
-        return table
+    # # 将单个sheet输出为一个字典, 根据标记位置的列作为字典key. 每一行的其它内容再嵌套成一个字典. {id1:{title1:v1,title2:v2...},...}
+    # def readExcelByKey(self, find):
+    #     table = {}
+    #     main_col = [cell.value for cell in self.sheet_data[find + 1]]
+    #     main_type = self.types[find]
+    #     for i in range(self.content_begin, len(main_col)):
+    #         row = [cell.value for cell in self.sheet_data[i + 1]]
+    #         if main_col[i] != "":
+    #             id = x2jutils.getValueByType(main_col[i], main_type)
+    #             table[id] = {}
+    #             for k in range(0, len(self.types)):
+    #                 if self.types[k] != "" and row[k] != "":
+    #                     value = x2jutils.getValueByType(
+    #                         row[k], self.types[k], self.subTypes[k]
+    #                     )
+    #                     key = self.titles[k]
+    #                     table[id][key] = value
+    #     return table
 
-    # 将单个sheet输出为一个字典, 根据标记位置, 将多行组成一个数组. 只支持2个level,即[{ 主键 [{从属内容},] },]
-    def readExcelByGroup(self, findGroup, find):
-        table = {}
-        main_group_col = self.sheet_data.col_values(findGroup)
-        main_col = self.sheet_data.col_values(find)
-        main_group_type = self.types[findGroup]
-        main_type = self.types[find]
-        for i in range(self.content_begin, len(main_group_col)):
-            content = self.sheet_data.row_values(i)
-            if main_group_col[i] != "":
-                group = x2jutils.getValueByType(main_group_col[i], main_group_type)
-                if not group in table.keys():
-                    table[group] = {}
-                id = x2jutils.getValueByType(main_col[i], main_type)
-                table[group][id] = {}
-                for k in range(0, len(self.types)):
-                    if self.types[k] != "" and content[k] != "":
-                        value = x2jutils.getValueByType(
-                            content[k], self.types[k], self.subTypes[k]
-                        )
-                        key = self.titles[k]
-                        table[group][id][key] = value
-        return table
+    # # 预留类型
+    # def readExcelByGroup(self, findGroup, find):
+    #     table = {}
+    #     main_group_col = [cell.value for cell in self.sheet_data[findGroup + 1]]
+    #     main_col = [cell.value for cell in self.sheet_data[find + 1]]
+    #     main_group_type = self.types[findGroup]
+    #     main_type = self.types[find]
+    #     for i in range(self.content_begin, len(main_group_col)):
+    #         row = [cell.value for cell in self.sheet_data[i + 1]]
+    #         if main_group_col[i] != "":
+    #             group = x2jutils.getValueByType(main_group_col[i], main_group_type)
+    #             if group not in table:
+    #                 table[group] = {}
+    #             id = x2jutils.getValueByType(main_col[i], main_type)
+    #             table[group][id] = {}
+    #             for k in range(0, len(self.types)):
+    #                 if self.types[k] != "" and row[k] != "":
+    #                     value = x2jutils.getValueByType(
+    #                         row[k], self.types[k], self.subTypes[k]
+    #                     )
+    #                     key = self.titles[k]
+    #                     table[group][id][key] = value
+    #     return table
 
     # **多语言文本表** 读取单个sheet, 以首列为字典key, 后续每一列作为不同dict的value, 并以每一列的id作为json名输出
     def readLocalizationExcel(self, char_data=None):
-        keys = self.sheet_data.col_values(0)[self.content_begin :]
-        col_num = self.sheet_data.ncols
-        for i in range(1, col_num):
-            if self.titles[i].startswith("#"):
+        self.sheet_data = list(zip(*self.sheet_data))
+        keys = self.sheet_data[0]
+        for j in range(1, self.max_col):
+            if self.titles[j].startswith("#"):
                 continue
-            content = self.sheet_data.col_values(i)[self.content_begin :]
+            col = self.sheet_data[j]
             if char_data:
-                list_badChar = char_data.col_values(0)[1:]
-                # list_badChar_unicode = char_data.col_values(1)[1:]
-                list_goodChar = char_data.col_values(2)[1:]
-                # list_goodChar_unicode = char_data.col_values(3)[1:]
-                content = x2jutils.fixBadChar(content, list_badChar, list_goodChar)
-            table = dict(zip(keys, content))
+                list_badChar = [
+                    cell.value for cell in char_data["A"] if cell.value is not None
+                ][1:]
+                list_goodChar = [
+                    cell.value for cell in char_data["C"] if cell.value is not None
+                ][1:]
+
+                col = x2jutils.fixBadChar(
+                    col,
+                    list_badChar,
+                    list_goodChar,
+                )
+            table = dict(zip(keys, col[: len(keys)]))
             x2jutils.writeJsonFile(
-                os.path.join(self.output_path, self.titles[i] + ".json"), table
+                os.path.join(self.output_path, self.titles[j] + ".json"), table
             )
 
 
