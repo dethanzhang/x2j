@@ -85,6 +85,14 @@ def fixBadChar(content, list_badChar, list_goodChar):
 
 def autoValue(value):
     try:
+        if (
+            "_" in value
+        ):  # 从 Python 3.6 开始，字符串中的下划线 _ 可以作为数字分隔符，float() 会忽略下划线, 会导致字符串被误转为浮点数[例如: 12_34 => 1234]
+            return str(value)
+    except Exception as e:
+        pass
+
+    try:
         value = float(value)
     except ValueError:
         return value
@@ -138,8 +146,8 @@ def getValueByType(value, type1, subType=None, debug=False):
             if "\n" in str(value):
                 value = value.replace("\n", ",")
             if "," not in str(value):
-                return [str(autoValue(value))]
-            listsValue = [str(autoValue(i)) for i in value.split(",")]
+                return [str(value)]
+            listsValue = [str(i) for i in value.split(",")]
             return listsValue
 
         # 处理array，数组内各元素的类型自动识别
@@ -224,9 +232,9 @@ def getValueByType(value, type1, subType=None, debug=False):
 
         # 处理str/string，字符串类型自动识别
         if type1 == "str" or type1 == "string":
-            if type(value).__name__ == "str":
-                return value
-            value = autoValue(value)
+            # if type(value).__name__ == "str":
+            #     return value
+            # value = autoValue(value) #从 Python 3.6 开始，字符串中的下划线 _ 可以作为数字分隔符，float() 会忽略下划线
             return str(value)
 
     except Exception as e:
