@@ -142,7 +142,7 @@ for item in all_xlsx_path:
             row=normal_r, column=normal_c, padx=5, pady=2, sticky=tk.W
         )
         normal_r += 1  # 下一行
-        if normal_r % 8 == 0:  # 如果需要换列
+        if normal_r % 12 == 0:  # 如果需要换列
             normal_c += 1
             normal_r = normal_start_row
 
