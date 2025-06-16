@@ -156,6 +156,11 @@ def getValueByType(value, type1, subType=None, debug=False):
                 value = value.replace("\n", ",")
             if value == "":
                 return []
+            try:
+                value = json.loads(value)
+                return value
+            except json.JSONDecodeError:
+                pass
             if "," not in str(value):
                 value = autoValue(value)
                 return [value]
@@ -164,6 +169,11 @@ def getValueByType(value, type1, subType=None, debug=False):
 
         # 处理matrix二维数组，各元素类型自动识别
         if type1 == "matrix":
+            try:
+                value = json.loads(value)
+                return value
+            except json.JSONDecodeError:
+                pass
             if "\n" in str(value):
                 value = value.replace("\n", "|")
             if "|" not in str(value):
