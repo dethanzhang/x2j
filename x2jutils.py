@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+import shutil
 
 
 def checkChdir():  # 打包为mac单文件时, 需要切换到app的上一级目录
@@ -19,18 +20,9 @@ def getAllFolders(prefix):
 
 
 def clearTempFiles(filePath):
-    if os.path.exists(filePath):
-        # 如果存在的话清空里面所有json/txt文件
-        list_files = os.listdir(filePath)
-        for i in range(0, len(list_files)):
-            file = list_files[i]
-            subfilePath = os.path.join(filePath, file)
-            if os.path.isfile(subfilePath) and (
-                fileExtension(file) == ".json" or fileExtension(file) == ".txt"
-            ):
-                os.remove(subfilePath)
-    else:
-        os.makedirs(filePath)
+    # 删除整个文件夹并新建目录
+    shutil.rmtree(filePath, ignore_errors=True)
+    os.makedirs(filePath)
 
 
 def xlsxFileList(filePath):
@@ -42,15 +34,21 @@ def xlsxFileList(filePath):
     return filenames
 
 
-def autoMove(dir1, dir2):
-    list_files = os.listdir(dir1)
-    for x in list_files:
-        try:
-            if os.path.exists(os.path.join(dir2, x)):
-                os.remove(os.path.join(dir2, x))
-            os.rename(os.path.join(dir1, x), os.path.join(dir2, x))
-        except Exception as e:
-            return str(e)
+def autoMove(src, dst):
+    for item in os.listdir(src):
+        src_path = os.path.join(src, item)
+        dst_path = os.path.join(dst, item)
+
+        if os.path.isdir(src_path):
+            if not os.path.exists(dst_path):
+                os.makedirs(dst_path)
+            autoMove(src_path, dst_path)
+        else:
+            try:
+                shutil.copy2(src_path, dst_path)
+            except Exception as e:
+                return e
+    clearTempFiles(src)
     return None
 
 

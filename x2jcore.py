@@ -18,6 +18,8 @@ class x2jcore:
         self.excel_path = "配置表"
         self.output_path = "output_temp"
         self.save_path = "json"
+        self.folder_keys = None
+        self.folder_dict = None
 
     def storeErrorMsg(self, i, j):
         quotient, remainder = divmod(j, 26)
@@ -31,12 +33,30 @@ class x2jcore:
         )
         self.error_cnt += 1
 
+    def outputJson(self, sheet_name, table):
+        if self.folder_keys and sheet_name in self.folder_keys:
+            folder_path = os.path.join(self.output_path, *self.folder_dict[sheet_name])
+            os.makedirs(folder_path, exist_ok=True)
+        else:
+            folder_path = self.output_path
+        x2jutils.writeJsonFile(
+            os.path.join(folder_path, sheet_name + ".json"),
+            table,
+        )
+
     def start(self, filename):  # 返回0=导表成功 1=字段名带空格
         self.error_msg = (
             {}
         )  # 格式为{sheetname1: [错误信息1,...],sheetname2: [错误信息1,...]}
         self.error_cnt = 0
         self.wb = load_workbook(filename, data_only=True)
+
+        try:
+            self.readFolderTags(self.wb["输出目录"])
+            print("已读取目录, 将按照设定目录结构导出")
+        except:
+            pass
+
         for sheet in self.wb.sheetnames:
             if sheet == "":
                 continue
@@ -107,28 +127,20 @@ class x2jcore:
                 if findGroup != -1:
                     if find != -1:
                         table = self.readExcelByGroup(findGroup, find)
-                        x2jutils.writeJsonFile(
-                            os.path.join(self.output_path, sheet_name + ".json"), table
-                        )
+                        self.outputJson(sheet_name, table)
                 elif find != -1:
                     table = self.readExcelByKey(find)
-                    x2jutils.writeJsonFile(
-                        os.path.join(self.output_path, sheet_name + ".json"), table
-                    )
+                    self.outputJson(sheet_name, table)
                 else:
                     # 都没有找到 为无key文件
                     table = self.readExcelNoKey()
-                    x2jutils.writeJsonFile(
-                        os.path.join(self.output_path, sheet_name + ".json"), table
-                    )
+                    self.outputJson(sheet_name, table)
                 continue
 
             if singleOutput == 2:
                 if findGroup != -1:
                     table = self.readExcelWithGroup(findGroup)
-                    x2jutils.writeJsonFile(
-                        os.path.join(self.output_path, sheet_name + ".json"), table
-                    )
+                    self.outputJson(sheet_name, table)
                 continue
 
             if singleOutput == 3:
@@ -282,6 +294,22 @@ class x2jcore:
             x2jutils.writeJsonFile(
                 os.path.join(self.output_path, self.titles[j] + ".json"), table
             )
+
+    # **读取输出目录页面** 读取单个sheet, 以首行作为路径名称字典key, 后续每一行作为不同dict的value, 并以每一列的id作为json名输出
+    def readFolderTags(self, sheet_data):
+        sheet_data = [
+            row
+            for row in sheet_data.iter_rows(min_row=1, values_only=True)
+            if any(cell is not None for cell in row)
+        ]  # 去掉空行仅保留有效数据
+
+        self.folder_dict = {}
+        self.folder_keys = set()
+        for tup in sheet_data:
+            key = tup[-1]  # 最后一个元素作为键
+            self.folder_keys.add(key)
+            values = list(tup[:-1])  # 其余元素作为值列表
+            self.folder_dict[key] = values
 
 
 if __name__ == "__main__":
