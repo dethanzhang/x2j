@@ -27,7 +27,7 @@ class x2jcore:
         else:
             col_name = chr(quotient + 64) + chr(remainder + 65)
         self.error_msg[self.current_sheet].append(
-            "行【%s】 【%s】列 填写错误" % (i, col_name)
+            "行【%s】 【%s】列 填写错误" % (i + self.content_begin, col_name)
         )
         self.error_cnt += 1
 

@@ -85,17 +85,22 @@ def fixBadChar(content, list_badChar, list_goodChar):
 
 def autoValue(value):
     try:
-        if (
-            "_" in value
+        if "_" in str(
+            value
         ):  # 从 Python 3.6 开始，字符串中的下划线 _ 可以作为数字分隔符，float() 会忽略下划线, 会导致字符串被误转为浮点数[例如: 12_34 => 1234]
             return str(value)
+        if "[" in str(value) and "]" in str(value):
+            return json.loads(value)
     except Exception as e:
         pass
-
     try:
         value = float(value)
     except ValueError:
         return value
+    return trimValue(value)
+
+
+def trimValue(value):
     value = f"{value:.8f}".rstrip("0").rstrip(".")
     try:  # 是否整数
         return int(value)
@@ -120,14 +125,17 @@ def getValueByType(value, type1, subType=None, debug=False):
                 return 0
             return ""
 
+        if type1 == "auto":
+            return autoValue(value)
+
         # 处理int/float
         if type1 == "int":
             if value == "":
                 return 0
             return int(value)
         if type1 == "float":
-            return float(
-                autoValue(value)
+            return autoValue(
+                value
             )  # 直接导出会导致导出的值为内存存储值, 与实际显示不一致
 
         # 处理bool
@@ -156,21 +164,21 @@ def getValueByType(value, type1, subType=None, debug=False):
                 value = value.replace("\n", ",")
             if value == "":
                 return []
+            if "[" in str(value) and "]" in str(value):
+                try:
+                    return json.loads(value)
+                except json.JSONDecodeError:
+                    pass
             if "," not in str(value):
                 value = autoValue(value)
                 return [value]
-            try:
-                value = json.loads(value)
-                return value
-            except json.JSONDecodeError:
-                pass
             listsValue = [autoValue(i) for i in value.split(",")]
             return listsValue
 
         # 处理matrix二维数组，各元素类型自动识别
         if type1 == "matrix":
             try:
-                return [[f"{value:.8f}".rstrip("0").rstrip(".")]]
+                return [[trimValue(value)]]
             except Exception as e:
                 pass
             try:
