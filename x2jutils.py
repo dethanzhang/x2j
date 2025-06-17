@@ -170,7 +170,7 @@ def getValueByType(value, type1, subType=None, debug=False):
         # 处理matrix二维数组，各元素类型自动识别
         if type1 == "matrix":
             try:
-                return [[autoValue(value)]]
+                return [[f"{value:.8f}".rstrip("0").rstrip(".")]]
             except Exception as e:
                 pass
             try:
