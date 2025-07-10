@@ -271,20 +271,21 @@ class x2jcore:
 
     # **多语言文本表** 读取单个sheet, 以首列为字典key, 后续每一列作为不同dict的value, 并以每一列的id作为json名输出
     def readLocalizationExcel(self, char_data=None):
+        if char_data:
+            list_badChar = [
+                cell.value for cell in char_data["A"] if cell.value is not None
+            ][1:]
+            list_goodChar = [
+                cell.value for cell in char_data["C"] if cell.value is not None
+            ][1:]
+
         self.sheet_data = list(zip(*self.sheet_data))
         keys = self.sheet_data[0]
         for j in range(1, self.max_col):
             if self.titles[j].startswith("#"):
                 continue
-            col = self.sheet_data[j]
+            col = list(self.sheet_data[j])
             if char_data:
-                list_badChar = [
-                    cell.value for cell in char_data["A"] if cell.value is not None
-                ][1:]
-                list_goodChar = [
-                    cell.value for cell in char_data["C"] if cell.value is not None
-                ][1:]
-
                 col = x2jutils.fixBadChar(
                     col,
                     list_badChar,
