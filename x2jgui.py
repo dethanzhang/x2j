@@ -118,7 +118,7 @@ def update_window_size(event=None):
     # 计算所有控件的高度（更精确的计算）
     canvas_height = data_frame.winfo_reqheight()
     # 下面的控件高度估计：勾选框(30) + 功能框架(20*n) + 执行按钮(80) + 边距(40)
-    bottom_widgets_height = 30 + len(all_json_folder) * 25 + 100 + 40
+    bottom_widgets_height = 30 + len(all_json_folder) * 25 + 150 + 40
     content_height = min(
         canvas_height + bottom_widgets_height, int(screen_height * 0.85)
     )
@@ -158,10 +158,8 @@ def get_column_count(file_count):
         return 2
     elif file_count <= 30:
         return 3
-    elif file_count <= 50:
-        return 4
     else:
-        return 5
+        return 4
 
 
 normal_columns = get_column_count(normal_count)
