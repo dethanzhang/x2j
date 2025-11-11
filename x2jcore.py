@@ -20,6 +20,7 @@ class x2jcore:
         self.save_path = "json"
         self.folder_keys = None
         self.folder_dict = None
+        self.single_folder = None
 
     def storeErrorMsg(self, i, j):
         quotient, remainder = divmod(j, 26)
@@ -37,6 +38,12 @@ class x2jcore:
         if self.folder_keys and sheet_name in self.folder_keys:
             folder_path = os.path.join(self.output_path, *self.folder_dict[sheet_name])
             os.makedirs(folder_path, exist_ok=True)
+
+        elif self.single_folder:
+            folder_path = os.path.join(self.output_path, *self.single_folder)
+            os.makedirs(folder_path, exist_ok=True)
+            self.single_folder = None
+
         else:
             folder_path = self.output_path
         x2jutils.writeJsonFile(
@@ -77,6 +84,10 @@ class x2jcore:
             if sheet_name.startswith("%"):
                 singleOutput = 4
                 sheet_name = sheet_name[1:]
+
+            marks = outputs[1].split("@")
+            if len(marks) > 1:
+                self.single_folder = marks[1:]
 
             self.current_sheet = sheet
             self.sheet_data = self.wb[sheet]

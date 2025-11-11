@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import x2jcore, x2jutils
 
-version = "3.3"
+version = "3.4"
 ax = x2jcore.x2jcore()
 x2jutils.checkChdir()
 
@@ -92,59 +92,170 @@ x2jutils.clearTempFiles(ax.output_path)
 root = tk.Tk()
 root.title("导表工具 v%s" % version)
 
-# 创建一个Frame用于放置数据列表
-data_frame = tk.Frame(root)
-# data_frame.pack(pady=10)
-data_frame.pack(pady=10, fill="both", expand=True)
+# 获取屏幕尺寸
+screen_width = root.winfo_screenwidth()
+screen_height = root.winfo_screenheight()
+
+# 创建主容器Frame
+main_container = tk.Frame(root)
+main_container.pack(pady=10, fill="both", expand=True)
+
+# 创建Canvas和Scrollbar
+canvas = tk.Canvas(main_container)
+scrollbar = ttk.Scrollbar(main_container, orient="vertical", command=canvas.yview)
+data_frame = tk.Frame(canvas)
+
+# 配置Canvas和滚动区域
+canvas.configure(yscrollcommand=scrollbar.set)
+
+
+# 设置窗口的最小尺寸和初始尺寸
+def update_window_size(event=None):
+    # 计算内容需要的尺寸
+    data_frame.update_idletasks()
+    content_width = data_frame.winfo_reqwidth() + scrollbar.winfo_reqwidth() + 40
+    content_height = min(data_frame.winfo_reqheight() + 220, screen_height * 0.8)
+
+    # 限制窗口的最大宽度为屏幕宽度的80%
+    max_width = int(screen_width * 0.8)
+    window_width = min(content_width, max_width)
+
+    # 设置窗口的最小尺寸
+    root.minsize(int(screen_width * 0.4), 400)
+
+    # 设置窗口的初始尺寸
+    root.geometry(f"{window_width}x{int(content_height)}")
+
+    # 设置Canvas的宽度
+    canvas.configure(width=window_width - scrollbar.winfo_reqwidth() - 10)
+
+
+# 绑定窗口大小更新函数
+data_frame.bind("<Configure>", update_window_size)
 
 # 创建变量来存储每个勾选框的状态
 item_vars = []
 
 target_string = "文本"  # 文件名包含该字符的会另外显示在特殊区域
-normal_start_row = 1  # 普通文件的起始行
-special_start_row = 20  # 特殊文件的起始行
-special_r, special_c = special_start_row, 0  # 特殊条件文件的行列位置
-normal_r, normal_c = normal_start_row, 0  # 普通文件的起始行列位置
 
+# 统计普通配置表和文本配置表的数量
+normal_files = [x for x in all_xlsx_path if target_string not in x]
+text_files = [x for x in all_xlsx_path if target_string in x]
+normal_count = len(normal_files)
+text_count = len(text_files)
+
+
+# 根据文件数量确定列数
+def get_column_count(file_count):
+    if file_count <= 20:
+        return 2
+    elif file_count <= 30:
+        return 3
+    elif file_count <= 50:
+        return 4
+    else:
+        return 5
+
+
+normal_columns = get_column_count(normal_count)
+text_columns = get_column_count(text_count)
+
+
+# 计算每列应该显示的行数
+def get_rows_per_column(total_items, num_columns):
+    base_rows = total_items // num_columns
+    extra = total_items % num_columns
+    return [base_rows + (1 if i < extra else 0) for i in range(num_columns)]
+
+
+# 获取每列的行数
+normal_rows_per_column = get_rows_per_column(normal_count, normal_columns)
+text_rows_per_column = get_rows_per_column(text_count, text_columns)
 
 # 在普通文件区域上方添加标题
 normal_label = tk.Label(
-    data_frame, text="--- 普通配置表 ---", fg="green", font=("Arial", 12, "bold")
+    data_frame,
+    text=f"--- 普通配置表 ({normal_count}) ---",
+    fg="green",
+    font=("Arial", 12, "bold"),
 )
-normal_label.grid(row=0, column=0, columnspan=5, pady=7, sticky="w")
+normal_label.grid(
+    row=0, column=0, columnspan=max(normal_columns, text_columns), pady=7, sticky="w"
+)
 
-# 普通文件和特殊文件之间添加分隔符
+# 添加普通配置表
+current_row = 1
+current_col = 0
+files_in_col = 0
+
+for item in normal_files:
+    check_var = tk.BooleanVar()
+    item_vars.append(check_var)
+
+    tk.Checkbutton(data_frame, text=item, variable=check_var).grid(
+        row=current_row, column=current_col, padx=5, pady=2, sticky=tk.W
+    )
+    files_in_col += 1
+    current_row += 1
+
+    if files_in_col >= normal_rows_per_column[current_col]:
+        current_col += 1
+        current_row = 1
+        files_in_col = 0
+
+# 计算文本配置表的起始行
+text_start_row = max([rows for rows in normal_rows_per_column]) + 3
+
+# 添加文本配置表标题
 separator_label = tk.Label(
     data_frame,
-    text="--- %s配置表 ---" % target_string,
+    text=f"--- {target_string}配置表 ({text_count}) ---",
     fg="blue",
     font=("Arial", 12, "bold"),
 )
 separator_label.grid(
-    row=special_start_row - 1, column=0, columnspan=5, pady=7, sticky="w"
+    row=text_start_row,
+    column=0,
+    columnspan=max(normal_columns, text_columns),
+    pady=7,
+    sticky="w",
 )
 
+# 添加文本配置表
+current_row = text_start_row + 1
+current_col = 0
+files_in_col = 0
 
-for item in all_xlsx_path:
+for item in text_files:
     check_var = tk.BooleanVar()
     item_vars.append(check_var)
 
-    if target_string in item:  # 如果文件名包含目标字符串
-        tk.Checkbutton(data_frame, text=item, variable=check_var).grid(
-            row=special_r, column=special_c, padx=5, pady=2, sticky=tk.W
-        )
-        special_r += 1  # 下一行
-        if (special_r - special_start_row) % 4 == 0:  # 如果需要换列
-            special_c += 1
-            special_r = special_start_row
-    else:  # 普通文件
-        tk.Checkbutton(data_frame, text=item, variable=check_var).grid(
-            row=normal_r, column=normal_c, padx=5, pady=2, sticky=tk.W
-        )
-        normal_r += 1  # 下一行
-        if normal_r % 12 == 0:  # 如果需要换列
-            normal_c += 1
-            normal_r = normal_start_row
+    tk.Checkbutton(data_frame, text=item, variable=check_var).grid(
+        row=current_row, column=current_col, padx=5, pady=2, sticky=tk.W
+    )
+    files_in_col += 1
+    current_row += 1
+
+    if files_in_col >= text_rows_per_column[current_col]:
+        current_col += 1
+        current_row = text_start_row + 1
+        files_in_col = 0
+
+# 设置Canvas和Scrollbar
+canvas.create_window((0, 0), window=data_frame, anchor="nw")
+
+
+# 配置Canvas的滚动区域和更新窗口大小
+def on_frame_configure(event):
+    canvas.configure(scrollregion=canvas.bbox("all"))
+    update_window_size()
+
+
+data_frame.bind("<Configure>", on_frame_configure)
+
+# 放置Canvas和Scrollbar
+canvas.pack(side="left", fill="both", expand=True)
+scrollbar.pack(side="right", fill="y")
 
 
 # 在特殊文件区域之前添加一条分隔线
@@ -183,7 +294,7 @@ for idx, feature in enumerate(all_json_folder):
 
 # 创建一个按钮用于执行脚本
 execute_button = tk.Button(
-    root, text="开始导表", command=perform_action, width=30, height=2
+    root, text="开始导表", command=perform_action, width=25, height=5
 )
 execute_button.pack(side=tk.BOTTOM, pady=10)
 
