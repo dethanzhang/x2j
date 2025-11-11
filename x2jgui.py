@@ -114,14 +114,21 @@ def update_window_size(event=None):
     # 计算内容需要的尺寸
     data_frame.update_idletasks()
     content_width = data_frame.winfo_reqwidth() + scrollbar.winfo_reqwidth() + 40
-    content_height = min(data_frame.winfo_reqheight() + 220, screen_height * 0.8)
+
+    # 计算所有控件的高度（更精确的计算）
+    canvas_height = data_frame.winfo_reqheight()
+    # 下面的控件高度估计：勾选框(30) + 功能框架(20*n) + 执行按钮(80) + 边距(40)
+    bottom_widgets_height = 30 + len(all_json_folder) * 25 + 100 + 40
+    content_height = min(
+        canvas_height + bottom_widgets_height, int(screen_height * 0.85)
+    )
 
     # 限制窗口的最大宽度为屏幕宽度的80%
     max_width = int(screen_width * 0.8)
     window_width = min(content_width, max_width)
 
     # 设置窗口的最小尺寸
-    root.minsize(int(screen_width * 0.4), 400)
+    root.minsize(int(screen_width * 0.4), 500)
 
     # 设置窗口的初始尺寸
     root.geometry(f"{window_width}x{int(content_height)}")
@@ -258,23 +265,43 @@ canvas.pack(side="left", fill="both", expand=True)
 scrollbar.pack(side="right", fill="y")
 
 
-# 在特殊文件区域之前添加一条分隔线
+# 计算实际使用的最后一行
+def get_last_row():
+    # 获取 data_frame 中所有子控件的最大行号
+    if data_frame.winfo_children():
+        max_row = 0
+        for widget in data_frame.winfo_children():
+            grid_info = widget.grid_info()
+            if grid_info:
+                row = grid_info.get("row", 0)
+                if row > max_row:
+                    max_row = row
+        return max_row
+    return 30
+
+
+# 在特殊文件区域之前添加一条分隔线（动态计算行号）
 separator = ttk.Separator(data_frame, orient="horizontal")
-separator.grid(row=30, column=0, columnspan=5, sticky="ew", pady=10)
+last_row = get_last_row() + 1
+separator.grid(row=last_row, column=0, columnspan=5, sticky="ew", pady=10)
+
+# 创建底部框架用于管理功能选项和执行按钮
+bottom_frame = tk.Frame(root)
+bottom_frame.pack(fill="both", expand=False, padx=10, pady=10)
 
 # 功能勾选框 - 是否开启自动移动到对应目录
 enable_var = tk.IntVar(value=0)  # 用来存储 "开启选择" 勾选框的状态，默认未勾选
 enable_checkbox = tk.Checkbutton(
-    root,
+    bottom_frame,
     text="是否自动导出到指定json目录(文件会被直接覆盖)",
     variable=enable_var,
     command=toggle_selection,
 )
-enable_checkbox.pack(pady=2)
+enable_checkbox.pack(pady=5, anchor="center")
 
 # 创建一个Frame用于放置功能选项
-feature_frame = tk.Frame(root)
-feature_frame.pack(pady=5)
+feature_frame = tk.Frame(bottom_frame)
+feature_frame.pack(fill="both", expand=False, pady=5)
 
 # 创建单选按钮（默认禁用状态）
 radio_buttons = []  # 用于存放所有单选按钮
@@ -289,14 +316,14 @@ for idx, feature in enumerate(all_json_folder):
         value=idx + 1,
         state=tk.DISABLED,
     )
-    radio.pack(anchor="w")
+    radio.pack(anchor="center", pady=2)
     radio_buttons.append(radio)
 
 # 创建一个按钮用于执行脚本
 execute_button = tk.Button(
-    root, text="开始导表", command=perform_action, width=25, height=5
+    bottom_frame, text="开始导表", command=perform_action, width=15, height=3
 )
-execute_button.pack(side=tk.BOTTOM, pady=10)
+execute_button.pack(side=tk.BOTTOM, pady=10, anchor="center")
 
 # 运行主循环
 root.mainloop()
