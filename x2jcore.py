@@ -34,7 +34,7 @@ class x2jcore:
         )
         self.error_cnt += 1
 
-    def outputJson(self, sheet_name, table):
+    def outputJson(self, sheet_name, table, reset=True):
         if self.folder_keys and sheet_name in self.folder_keys:
             folder_path = os.path.join(self.output_path, *self.folder_dict[sheet_name])
             os.makedirs(folder_path, exist_ok=True)
@@ -42,7 +42,8 @@ class x2jcore:
         elif self.single_folder:
             folder_path = os.path.join(self.output_path, *self.single_folder)
             os.makedirs(folder_path, exist_ok=True)
-            self.single_folder = None
+            if reset:
+                self.single_folder = None
 
         else:
             folder_path = self.output_path
@@ -303,9 +304,11 @@ class x2jcore:
                     list_goodChar,
                 )
             table = dict(zip(keys, col[: len(keys)]))
-            x2jutils.writeJsonFile(
-                os.path.join(self.output_path, self.titles[j] + ".json"), table
-            )
+            self.outputJson(self.titles[j], table, reset=False)
+        self.single_folder = None
+        # x2jutils.writeJsonFile(
+        #     os.path.join(self.output_path, self.titles[j] + ".json"), table
+        # )
 
     # **读取输出目录页面** 读取单个sheet, 以首行作为路径名称字典key, 后续每一行作为不同dict的value, 并以每一列的id作为json名输出
     def readFolderTags(self, sheet_data):
